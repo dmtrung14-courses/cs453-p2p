@@ -13,7 +13,7 @@ def download_image(filename, address, port):
     # Send the request to download the file
     request = f"GET {filename}\n"
     client_socket.send(request.encode())
-    print("Connected to Server. Requesting file...")
+    # print("Connected to Server. Requesting file...")
     data = b""
     # Receive the response from the server
     while True:
@@ -24,15 +24,17 @@ def download_image(filename, address, port):
         except timeout:
             break
 
-    print("Done getting files, preparing to save...")
+    # print("Done getting files, preparing to save...")
     header_sep = data.index(b'\n\n')
     file = data[header_sep+2:]
+    # # Create an image object from the bytes
+    # image = Image.open(io.BytesIO(file))
 
-    # Create an image object from the bytes
-    image = Image.open(io.BytesIO(file)).convert("RGB")
+    # # Save the image file
+    # image.save(filename)
 
-    # Save the image file
-    image.save(filename)
+    with open(filename, 'wb') as f:
+        f.write(file)
 
     client_socket.close()
 
