@@ -2,9 +2,27 @@ import time
 import random
 import socket
 import sys
+import threading
+def find_peer_once(filename, tracker_ip, tracker_port):
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    request = f"GET {filename}.torrent\n"
+    udp_socket.sendto(request.encode(), (tracker_ip, tracker_port))
+    response, _ = udp_socket.recvfrom(1024)
+    metadata = response.decode().split('\n')
+    
+    peers = set()
+    for i in range(2, len(metadata)-1, 2):
+        ip = metadata[i].split(': ')[1]
+        port = int(metadata[i+1].split(': ')[1])
+        peers.add((ip, port))
+    udp_socket.close()
+    return list(peers)
+
+
 
 def get_torrent_metadata(filename, tracker_ip, tracker_port):
     # Create a UDP socket
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
 
     # Send the torrent metadata request
@@ -12,9 +30,9 @@ def get_torrent_metadata(filename, tracker_ip, tracker_port):
     
 
     peers = set()
-    for i in range(3):
-        print(f"Requesting for the {i+1} time")
-        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    counter = 0
+    while len(peers) < 5:
+        print(f"Discovery round: {counter+1}")
         udp_socket.sendto(request.encode(), (tracker_ip, tracker_port))
         # Receive the torrent metadata response
         response, _ = udp_socket.recvfrom(1024)
@@ -31,52 +49,87 @@ def get_torrent_metadata(filename, tracker_ip, tracker_port):
             peers.add((ip, port))
 
         # Close the UDP socket
-        udp_socket.close()
         # Sleep for 2 second
+        counter += 1
         time.sleep(2)
+    udp_socket.close()
 
-    return num_blocks, file_size, list(peers)
+    return num_blocks, file_size, list(peers)[:5]
 
-def download_file(filename, num_blocks, peers):
+def thread(i, peer, filename):
+    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    peer_socket.connect(peer)
+    with open(filename, 'wb') as file:
+        segment = i
+        while segment < num_blocks:
+
+            # Send the block request
+            request = f"GET {filename}:{segment}\n"
+            peer_socket.send(request.encode())
+            
+            response = b""
+            print(f"Response block: {segment + 1}/{num_blocks}")
+            
+            while True:
+                try:
+                    response += peer_socket.recv(1024)
+                    peer_socket.settimeout(1.2)
+                except socket.timeout:
+                    break
+                except ConnectionAbortedError:
+                    print("Connection closed by host. Rediscovering new peer...")
+                    peer_socket.close()
+                    new_peer = None
+                    mutex.acquire()
+                    peer_set.remove(peer)
+                    while new_peer is None:
+                        discovered = find_peer_once(filename, tracker_ip, tracker_port)
+                        if discovered[0] not in peer_set:
+                            new_peer = discovered[0]
+                            break
+                        elif discovered[1] not in peer_set:
+                            new_peer = discovered[1]
+                            break
+                        time.sleep(2)
+                    peer_set.add(new_peer)
+                    mutex.release()
+                    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    peer_socket.connect(new_peer)
+                    request = f"GET {filename}:{segment}\n"
+                    peer_socket.send(request.encode())
+                    response = b""
+            # print(response)
+            print(f"successfully retrieved block {segment + 1}")
+            # Receive the block response
+            header_sep = response.index(b'\n\n')
+            header_fields = response[:header_sep].decode().split('\n')
+            offset = int(header_fields[1].split(': ')[1])
+
+            # Write the block data to the file at the specified offset
+            file.seek(offset)
+            file.write(response[header_sep+2:])
+            segment += len(peers)
+    peer_socket.close()
+    return
+
+def download_file(filename, num_blocks, peers, thread):
     print("Downloading the file...")
     # Create a TCP socket for each peer
     print("Number of peers found: ", len(peers))
     print("Number of blocks: ", num_blocks)
-    tcp_sockets = []
-    for peer in peers:
-        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_socket.connect(peer)
-        tcp_sockets.append(tcp_socket)
-    # Download each block from a random peer
-    with open(filename, 'wb') as file:
-        for block_number in range(num_blocks):
-            # Choose a random peer
-            peer_index = random.randint(0, len(peers)-1)
-            peer_socket = tcp_sockets[peer_index]
+    
+    pthreads = [None for _ in range(len(peers))]
 
-            # Send the block request
-            request = f"GET {filename}:{block_number}\n"
-            peer_socket.send(request.encode())
-            
-            response = b""
+    # Create threads and connect to each peer
+    for i, peer in enumerate(peers):
+        pthreads[i] = threading.Thread(target=thread, args=(i, peer, filename))
+        pthreads[i].start()
 
-            while True:
-                try:
-                    print(f"Response block: {block_number}  ", response)
-
-                    response += peer_socket.recv(1024)
-                    peer_socket.settimeout(0.5)
-                except socket.timeout:
-                    break
-            # Receive the block response
-            
-            header_sep = response.index(b'\n\n')
-            file.write(response[header_sep+2:])
-
-
-    # Close all TCP sockets
-    for tcp_socket in tcp_sockets:
-        tcp_socket.close()
+    # Wait for all threads to finish
+    for thread in threading.enumerate():
+        if thread != threading.current_thread():
+            thread.join()
+    
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -91,5 +144,11 @@ if __name__ == "__main__":
     # python P2PDownloader.py test.jpg date.cs.umass.edu 19876
     # python P2PDownloader.py redsox.jpg date.cs.umass.edu 19876
 
+    mutex = threading.Semaphore(1)
+    start = time.time()
+
     num_blocks, file_size, peers = get_torrent_metadata(filename, tracker_ip, tracker_port)
-    download_file(filename, num_blocks, peers)
+    peer_set = set(peers)
+    download_file(filename, num_blocks, peers, thread)
+    end = time.time()
+    print(f"Downloaded {filename} in {end-start} seconds")
