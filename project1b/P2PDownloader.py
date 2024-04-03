@@ -18,32 +18,10 @@ def find_peer_once(filename, tracker_ip, tracker_port):
     udp_socket.close()
     return list(peers)
 
-# def find_peer(filename, tracker_ip, tracker_port):
-#     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#     request = f"GET {filename}.torrent\n"
-#     udp_socket.sendto(request.encode(), (tracker_ip, tracker_port))
-#     while True:
-#         mutex.acquire()
-#         if len(peers) < 5:
-#             response, _ = udp_socket.recvfrom(1024)
-#             metadata = response.decode().split('\n')
-#             num_blocks = int(metadata[0].split(': ')[1])
-#             file_size = int(metadata[1].split(': ')[1])
-#             for i in range(2, len(metadata)-1, 2):
-#                 ip = metadata[i].split(': ')[1]
-#                 port = int(metadata[i+1].split(': ')[1])
-#                 peers.add((ip, port))
-#         else:
-#             break
-#         mutex.release()
-#     udp_socket.close()
-#     return
+def get_torrent_metadata(filename, tracker_ip, tracker_port): 
 
-
-
-def get_torrent_metadata(filename, tracker_ip, tracker_port):
-    peers = set()
     # Create a UDP socket
+    peers = set()
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
 
@@ -178,13 +156,15 @@ if __name__ == "__main__":
     # For quick testing prompt:
     # python P2PDownloader.py test.jpg date.cs.umass.edu 19876
     # python P2PDownloader.py redsox.jpg date.cs.umass.edu 19876
-
+    discover = threading.Semaphore(1)
     mutex = threading.Semaphore(1)
     seg = threading.Semaphore(1)
     start = time.time()
 
+
     num_blocks, file_size, peers = get_torrent_metadata(filename, tracker_ip, tracker_port)
     peer_set = set(peers)
+    peers = list(peers)[:5]
     next_seg = 0
     download_file(filename, num_blocks, peers, thread)
     end = time.time()
