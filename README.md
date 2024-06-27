@@ -45,3 +45,8 @@ Refer [here](https://bitbucket.org/compnetworks/csp2p-downloader/src/2d6bc3fb730
 All the packages used in this project are from Python standard library, so if you have `Python >= 3.8`, you will be fine.
 
 The server might not be running all year long, but the source code can be found [here](https://bitbucket.org/compnetworks/sockets/src/master/). It comes in both Java and Python, and can be run locally.
+
+## Release Statement
+This project is open to all, provided as is, and will not receive further updates. The code provided here is based on the requirements from the coursework and other personal improvements. 
+
+*For UMass Amherst students*: I am strongly against academic dishonesty and highly recommend students who will take this course in the future treat this source code as a referrence rather than blatantly copy it. I do not take responsibility for any consequences of unauthorized reproduction of this repository.
