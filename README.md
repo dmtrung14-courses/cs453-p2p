@@ -13,16 +13,20 @@ The project requires both discovery of peers and fast and accurate file transfer
 ## Overview
 ### Client Server and Peer To Peer file sharing
 
+![file server system](./assets/network.png)
+
+
 Unlike the client server model, where each client will get served by the listening server, the peer to peer file sharing model takes advantage of the cumulative power of the peers.
 
 If a file is of size $F$ bytes is to be distributed to $N$ clients, the server upload rate is $u_s$ and the min client download rate is $d_{min}$ then in Client-Server model, it will take:
 
-$$D_{CS} = max\{NF/u_s,F/d_{min}\} $$
+$$D_{CS} = \max\{NF/u_s,F/d_{min}\} $$
 
 Meanwhile, the P2P model improves this by only making the server tranmit the file once, resulting in a delay of $F/u_s$ rather than $NF/u_s$. Meanwhile, the cumulative time of upload is $$NF/(u_s + \sum u_i) \approxeq NF/Nu_i \approxeq F/min(u_i)$$
 
 Therefore, when $N$ is very large and $d_{min}$ is acceptable, the expected time of file transfer is:
-$$D_{P2P} = max\{F/u_s,F/d_{min},NF/(u_s + \sum u_i)\} \ll D_{CS}$$
+$$D_{P2P} = \max\{F/u_s,F/d_{min},NF/(u_s + \sum u_i)\} \ll D_{CS}$$
+
 
 ### Multi-threading
 Data chunks are requested via TCP, so loss and corruption is already handled by the packages. For TCP implementation, see my [cs453-project2](https://github.com/dmtrung14-courses/cs453-proj2/).
