@@ -2,7 +2,7 @@
 
 ![Banner](./assets/banner.png)
 
-This repository provides the source code to the Peer To Peer file transfer system that I used in [UMass Amherst CS453: Computer Network](https://sites.google.com/view/cs43-s22/overview?authuser=0).
+This repository provides the source code to the Peer To Peer file transfer system that I used in [UMass Amherst CS453: Computer Network](https://sites.google.com/view/cs43-s22/overview?authuser=0). The full blog post can be found at [dmtrung.com](https://dmtrung.com/blogs/network_programming.html)
 
 The project requires both discovery of peers and fast and accurate file transfer protocol. The given threshold was 48 seconds for a 800 kB file [redsox.jpg](./PeerToPeer/redsox.jpg). By using multithreading and memory buffer, I was able to reduce this time to 36 seconds. This matches the best run time given by the solution, and was the best one among 150 students of the class. 
 
